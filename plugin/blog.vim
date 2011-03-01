@@ -12,19 +12,23 @@
 " along with this program; if not, write to the Free Software Foundation,
 " Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
 " 
+" BlogDel, revised BlogList via http://wiki.yepn.net/vimpress
+"
 " Original Author: Adrien Friggeri <adrien@friggeri.net>
 " Maintainer:	   Josh Kenzer <jkenzer@radicalbehavior.com>
 " URL:		   http://www.radicalbehavior.net/projets/vimblog/
-" Version:	   1.0
-" Last Change:     2011 February 28
+" Version:	   1.1
+" Last Change:     2011 March 1
 "
 " Commands :
-" ":BlogList"
-"   Lists all articles in the blog
+" ":BlogList [count]"
+"   Lists the last x articles in the blog - if left blank 10 are returned
 " ":BlogNew"
 "   Opens page to write new article
 " ":BlogOpen <id>"
 "   Opens the article <id> for edition
+" ":BlogDel <id>" 
+"   Del the article <id>
 " ":BlogSend"
 "   Saves the article to the blog
 " ":BlogUp <image name>"
@@ -41,11 +45,12 @@
 "   Just fill in the blanks, do not modify the highlighted parts and everything
 "   should be ok.
 
-command! -nargs=0 BlogList exec("py blog_list_posts()")
+command! -nargs=* BlogList exec("py blog_list_posts(<args>)")
 command! -nargs=0 BlogNew exec("py blog_new_post()")
 command! -nargs=0 BlogSend exec("py blog_send_post()")
 command! -nargs=1 BlogOpen exec('py blog_open_post(<f-args>)')
 command! -nargs=1 BlogUp exec('py blog_upload_img(<f-args>)')
+command! -nargs=1 BlogDel exec('py blog_del_post(<f-args>)')
 
 python <<EOF
 # -*- coding: utf-8 -*-
@@ -58,9 +63,9 @@ import urllib , urllib2 , vim , xml.dom.minidom , xmlrpclib , sys , string , re
 enable_tags = 1
 blog_username = 'username'
 blog_password = 'password'
-blog_url = 'http://blog.url/'  
-blog_api = 'http://blog.url/xmlrpc.php'  
-img_dir = '/path/to/img/'
+blog_url = 'http://blog.url.com/'  
+blog_api = 'http://blog.url.com/xmlrpc.php'  
+img_dir = '/path/to/images/'
 
 #####################
 # Do not edit below #
@@ -203,22 +208,36 @@ def blog_list_edit():
   except:
     pass
 
-def blog_list_posts():
-  try:
-    lessthan = handler.getRecentPosts('',blog_username, blog_password,1)[0]["postid"]
-    size = len(lessthan)
-    allposts = handler.getRecentPosts('',blog_username, blog_password,int(lessthan))
-    del vim.current.buffer[:]
-    vim.command("set syntax=blogsyntax")
-    vim.current.buffer[0] = "\"====== List of Posts ========="
-    for p in allposts:
-      vim.current.buffer.append(("".zfill(size-len(p["postid"])).replace("0", " ")+p["postid"])+"\t"+(p["title"]).encode("utf-8"))
-      vim.command('set nomodified')
-    blog_edit_off()
-    vim.current.window.cursor = (2, 0)
-    vim.command('map <enter> :py blog_list_edit()<cr>')
-  except:
-    sys.stderr.write("An error has occured")
+def blog_list_posts(count=10): 
+  try: 
+    allposts = handler.getRecentPosts('',blog_username, blog_password, count) 
+    del vim.current.buffer[:] 
+    vim.command("set syntax=blogsyntax") 
+    vim.current.buffer[0] = "\"====== List of Posts =========" 
+    for p in allposts: 
+      vim.current.buffer.append(("%-7s\t" % p["postid"]) + (p["title"]).encode("utf-8")) 
+      vim.command('set nomodified') 
+    blog_edit_off() 
+    vim.current.window.cursor = (2, 0) 
+    vim.command('map <enter> :py blog_list_edit()<cr>') 
+  except: 
+    sys.stderr.write("An error has occured") 
+
+def blog_del_post(id): 
+  try: 
+    handler.deletePost('',id, blog_username, blog_password) 
+    allposts = handler.getRecentPosts('',blog_username, blog_password, 10) 
+    del vim.current.buffer[:] 
+    vim.command("set syntax=blogsyntax") 
+    vim.current.buffer[0] = "\"====== New List of Posts =========" 
+    for p in allposts: 
+      vim.current.buffer.append(("%-7s\t" % p["postid"]) + (p["title"]).encode("utf-8")) 
+      vim.command('set nomodified') 
+    blog_edit_off() 
+    vim.current.window.cursor = (2, 0) 
+    vim.command('map <enter> :py blog_list_edit()<cr>') 
+  except: 
+    pass 
     
 def blog_upload_img(filename):
   try:
