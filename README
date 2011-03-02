@@ -1,29 +1,30 @@
 This is a mirror of http://www.vim.org/scripts/script.php?script_id=3475
 
-I took the popular vimpress plugin and added the ability to upload images and set a post status type (draft or published).
+ took the popular vimpress plugin and added the ability to upload images and set a post status type (draft or published). 
 
 
- Commands :
-" ":BlogList [count]"
-"   Lists the last x articles in the blog - if left blank 10 are returned
-" ":BlogNew"
-"   Opens page to write new article
-" ":BlogOpen <id>"
-"   Opens the article <id> for edition
+Commands : 
+" ":BlogList [count]" 
+"   Lists the last x articles in the blog - if left blank 10 are returned 
+" ":BlogNew" 
+"   Opens page to write new article 
+" ":BlogOpen <id>" 
+"   Opens the article <id> for edition 
 " ":BlogDel <id>" 
-"   Del the article <id>
-" ":BlogSend"
-"   Saves the article to the blog
-" ":BlogUp <image name>"
-"   Uploads an image to the blog and inserts the image url
-"
+"   Del the article <id> 
+" ":BlogSend" 
+"   Saves the article to the blog 
+" ":BlogUp <image name>" 
+"   Uploads an image to the blog and inserts the image url 
+" 
 " Configuration : 
-"   Edit the "Settings" section (starts at line 51).
-"
+"   Edit the "Settings" section (starts at line 51). 
+" 
 "   If you wish to use UTW tags, you should install the following plugin : 
-"   http://blog.circlesixdesign.com/download/utw-rpc-autotag/
-"   and set "enable_tags" to 1 on line 50
-"
+"   http://blog.circlesixdesign.com/download/utw-rpc-autotag/ 
+"   and set "enable_tags" to 1 on line 50 
+" 
 " Usage : 
-"   Just fill in the blanks, do not modify the highlighted parts and everything
+"   Just fill in the blanks, do not modify the highlighted parts and everything 
 "   should be ok.
+ 

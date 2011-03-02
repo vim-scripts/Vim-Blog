@@ -17,8 +17,8 @@
 " Original Author: Adrien Friggeri <adrien@friggeri.net>
 " Maintainer:	   Josh Kenzer <jkenzer@radicalbehavior.com>
 " URL:		   http://www.radicalbehavior.net/projets/vimblog/
-" Version:	   1.1
-" Last Change:     2011 March 1
+" Version:	   1.2
+" Last Change:     2011 March 2
 "
 " Commands :
 " ":BlogList [count]"
@@ -32,7 +32,9 @@
 " ":BlogSend"
 "   Saves the article to the blog
 " ":BlogUp <image name>"
-"   Uploads an image to the blog and inserts the image url
+"   Uploads an image to the blog and inserts the image url. It will use the
+"   img_template var to fill in a whole img tag if wanted. Use %s where you'd
+"   like the actual url to be.
 "
 " Configuration : 
 "   Edit the "Settings" section (starts at line 51).
@@ -66,6 +68,9 @@ blog_password = 'password'
 blog_url = 'http://blog.url.com/'  
 blog_api = 'http://blog.url.com/xmlrpc.php'  
 img_dir = '/path/to/images/'
+
+#Remove this line if you wish to just have the url inserted
+img_template = '<img src="%s" width="500" height="" border=0 style="margin-bottom:5px;" />'
 
 #####################
 # Do not edit below #
@@ -243,17 +248,21 @@ def blog_upload_img(filename):
   try:
     #filename = vim.eval(filename)
     if(os.path.exists(img_dir+filename) == False):
-      raise Exception,'file %s not found' %filename
+      raise FileError('file not found'+filename)
     else:
       content_type = 'image/%s' %(filename.split('.')[-1])
       if content_type == 'image/jpg':
         content_type = 'image/jpeg'
         content_type = content_type.lower()
-  
+
     #upload
-    newFile = handler.newMediaObject('', user_name, password,{'name': filename, 'type': content_type, 'bits': xmlrpclib.Binary(open(img_dir+filename).read())})
-  
+    newFile = handler.newMediaObject('', blog_username, blog_password,{'name': filename, 'type': content_type, 'bits': xmlrpclib.Binary(open(img_dir+filename).read())})
+
     #write the url of your upload photo
-    vim.command("normal i"+newFile['url'])
+    #vim.command("normal i"+newFile['url'])
+    if(img_template):
+      vim.command("normal i"+re.sub(r'%s', newFile['url'], img_template))
+    else:
+      vim.command("normal i"+newFile['url'])
   except:
     sys.stderr.write("An error has occured")
