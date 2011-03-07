@@ -16,9 +16,9 @@
 "
 " Original Author: Adrien Friggeri <adrien@friggeri.net>
 " Maintainer:	   Josh Kenzer <jkenzer@radicalbehavior.com>
-" URL:		   http://www.radicalbehavior.net/projets/vimblog/
-" Version:	   1.2
-" Last Change:     2011 March 2
+" URL:		   http://www.radicalbehavior.com/vim-blog/
+" Version:	   1.5
+" Last Change:     2011 March 7
 "
 " Commands :
 " ":BlogList [count]"
@@ -30,22 +30,48 @@
 " ":BlogDel <id>" 
 "   Del the article <id>
 " ":BlogSend"
-"   Saves the article to the blog
+"   Saves the article to the blog if the Post Status is draft. Posts the
+"   article to the blog if the Post Status is publish
 " ":BlogUp <image name>"
 "   Uploads an image to the blog and inserts the image url. It will use the
 "   img_template var to fill in a whole img tag if wanted. Use %s where you'd
 "   like the actual url to be.
+" "<leader>c"
+"   Must be in insert mode.
+"   Displays an auto-complete list of available blog categories. Currently
+"   only supported after :BlogNew
+"   You can remap this on line73
 "
 " Configuration : 
 "   Edit the "Settings" section (starts at line 51).
 "
 "   If you wish to use UTW tags, you should install the following plugin : 
 "   http://blog.circlesixdesign.com/download/utw-rpc-autotag/
-"   and set "enable_tags" to 1 on line 50
+"   and set "enable_tags" to 1 on line 90
 "
 " Usage : 
 "   Just fill in the blanks, do not modify the highlighted parts and everything
 "   should be ok.
+" TODO:
+"   Documentation - Help File
+"   Categories with commas doesn't work
+"   Categories available on an edit
+" LOAD GUARD {{{1
+
+if exists('g:loaded_vimblog')
+  finish
+elseif v:version < 700
+  echoerr 'Vim Blog probably does not support this version of vim (' . v:version . ').'
+  finish
+endif
+let g:loaded_vimblog = 1
+if !has('python')
+    echo "Error: Required vim compiled with +python"
+    finish
+endif
+" }}}1
+
+imap <leader>c 
 
 command! -nargs=* BlogList exec("py blog_list_posts(<args>)")
 command! -nargs=0 BlogNew exec("py blog_new_post()")
@@ -70,7 +96,7 @@ blog_api = 'http://blog.url.com/xmlrpc.php'
 img_dir = '/path/to/images/'
 
 #Remove this line if you wish to just have the url inserted
-img_template = '<img src="%s" width="500" height="" border=0 style="margin-bottom:5px;" />'
+img_template = '<img src="%s" width="500" height="300" border=0 style="margin-bottom:10px;" />'
 
 #####################
 # Do not edit below #
@@ -151,22 +177,23 @@ def blog_send_post():
 
 
 def blog_new_post():
-  def blog_get_cats():
-    l = handler.getCategories('', blog_username, blog_password)
-    s = ""
-    for i in l:
-      s = s + (i["description"].encode("utf-8"))+", "
-    if s != "": 
-      return s[:-2]
-    else:
-      return s
+  l = handler.getCategories('', blog_username, blog_password)
+  s = ""
+  for i in l:
+    s = s + (i["description"].encode("utf-8"))+"|"
+  vim.command('let s:cats = "'+s+'"')
+  #if s != "": 
+  #return s[:-2]
+  #else:
+  #return s
   del vim.current.buffer[:]
   blog_edit_on()
-  vim.command("set syntax=blogsyntax.html")
+  vim.command("set ft=html")
+  vim.command("set syntax=blogsyntax")
   vim.current.buffer[0] =   "\"=========== Meta ============\n"
   vim.current.buffer.append("\"StrID : ")
   vim.current.buffer.append("\"Title : ")
-  vim.current.buffer.append("\"Cats  : "+blog_get_cats())
+  vim.current.buffer.append("\"Cats  : ")
   vim.current.buffer.append("\"Status: draft")
   vim.current.buffer.append("\"Preview: ")
   if enable_tags:
@@ -175,12 +202,15 @@ def blog_new_post():
   vim.current.buffer.append("\n")
   vim.current.window.cursor = (len(vim.current.buffer), 0)
   vim.command('set nomodified')
+  vim.command('set wrap')
+  vim.command('set linebreak')
   vim.command('set textwidth=0')
 
 def blog_open_post(id):
   try:
     post = handler.getPost(id, blog_username, blog_password)
     blog_edit_on()
+    vim.command("set ft=html")
     vim.command("set syntax=blogsyntax")
     del vim.current.buffer[:]
     vim.current.buffer[0] =   "\"=========== Meta ============\n"
@@ -201,6 +231,8 @@ def blog_open_post(id):
     text_start +=1
     vim.current.window.cursor = (text_start+1, 0)
     vim.command('set nomodified')
+    vim.command('set wrap')
+    vim.command('set linebreak')
     vim.command('set textwidth=0')
   except:
     sys.stderr.write("An error has occured")
@@ -217,6 +249,7 @@ def blog_list_posts(count=10):
   try: 
     allposts = handler.getRecentPosts('',blog_username, blog_password, count) 
     del vim.current.buffer[:] 
+    vim.command("set ft=html")
     vim.command("set syntax=blogsyntax") 
     vim.current.buffer[0] = "\"====== List of Posts =========" 
     for p in allposts: 
@@ -233,6 +266,7 @@ def blog_del_post(id):
     handler.deletePost('',id, blog_username, blog_password) 
     allposts = handler.getRecentPosts('',blog_username, blog_password, 10) 
     del vim.current.buffer[:] 
+    vim.command("set ft=html")
     vim.command("set syntax=blogsyntax") 
     vim.current.buffer[0] = "\"====== New List of Posts =========" 
     for p in allposts: 
@@ -259,10 +293,33 @@ def blog_upload_img(filename):
     newFile = handler.newMediaObject('', blog_username, blog_password,{'name': filename, 'type': content_type, 'bits': xmlrpclib.Binary(open(img_dir+filename).read())})
 
     #write the url of your upload photo
-    #vim.command("normal i"+newFile['url'])
     if(img_template):
       vim.command("normal i"+re.sub(r'%s', newFile['url'], img_template))
     else:
       vim.command("normal i"+newFile['url'])
   except:
     sys.stderr.write("An error has occured")
+EOF
+let s:cats = "Jantest Febjosh Mar Apr May Jun Jul Aug Sep Oct Nov Dec1"
+fun! CompleteCats(findstart, base)
+  if a:findstart
+    " locate the start of the word
+    let line = getline('.')
+    let start = col('.') - 1
+    while start > 0 && line[start - 1] =~ '\a'
+      let start -= 1
+    endwhile
+    return start
+  else
+    " find months matching with "a:base"
+    let res = []
+    for m in split(s:cats,"|")
+      if m =~ '^' . a:base
+        call add(res, m)
+      endif
+    endfor
+    return res
+  endif
+endfun
+set completefunc=CompleteCats
+
