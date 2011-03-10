@@ -17,8 +17,8 @@
 " Original Author: Adrien Friggeri <adrien@friggeri.net>
 " Maintainer:	   Josh Kenzer <jkenzer@radicalbehavior.com>
 " URL:		   http://www.radicalbehavior.com/vim-blog/
-" Version:	   1.5
-" Last Change:     2011 March 7
+" Version:	   1.6
+" Last Change:     2011 March 10
 "
 " Commands :
 " ":BlogList [count]"
@@ -37,25 +37,22 @@
 "   img_template var to fill in a whole img tag if wanted. Use %s where you'd
 "   like the actual url to be.
 " "<leader>c"
-"   Must be in insert mode.
 "   Displays an auto-complete list of available blog categories. Currently
 "   only supported after :BlogNew
-"   You can remap this on line73
+"   You can remap this on line 69
 "
 " Configuration : 
-"   Edit the "Settings" section (starts at line 51).
-"
-"   If you wish to use UTW tags, you should install the following plugin : 
-"   http://blog.circlesixdesign.com/download/utw-rpc-autotag/
-"   and set "enable_tags" to 1 on line 90
+"   Edit the "Settings" section (starts at line 82).
 "
 " Usage : 
 "   Just fill in the blanks, do not modify the highlighted parts and everything
 "   should be ok.
+"
 " TODO:
 "   Documentation - Help File
+"   Change the preview in browser to only open it once per post
 "   Categories with commas doesn't work
-"   Categories available on an edit
+"   Code refactoring
 " LOAD GUARD {{{1
 
 if exists('g:loaded_vimblog')
@@ -82,21 +79,23 @@ command! -nargs=1 BlogDel exec('py blog_del_post(<f-args>)')
 
 python <<EOF
 # -*- coding: utf-8 -*-
-import urllib , urllib2 , vim , xml.dom.minidom , xmlrpclib , sys , string , re
+import urllib , urllib2 , vim , xml.dom.minidom , xmlrpclib , sys , string , re, webbrowser
 
 #####################
 #      Settings     #
 #####################
 
-enable_tags = 1
-blog_username = 'username'
+blog_username = 'user'
 blog_password = 'password'
 blog_url = 'http://blog.url.com/'  
 blog_api = 'http://blog.url.com/xmlrpc.php'  
-img_dir = '/path/to/images/'
+img_dir = '/path/to/files/'
 
 #Remove this line if you wish to just have the url inserted
 img_template = '<img src="%s" width="500" height="300" border=0 style="margin-bottom:10px;" />'
+
+#if you'd like your default browser to open the post on :BlogSend, set this to 1
+enable_preview = 1
 
 #####################
 # Do not edit below #
@@ -136,8 +135,7 @@ def blog_send_post():
   title = get_meta("Title")
   post_status = get_meta("Status")
   cats = [i.strip() for i in get_meta("Cats").split(",")]
-  if enable_tags:
-    tags = get_meta("Tags")
+  tags = get_meta("Tags")
   
   text_start = 0
   while not vim.current.buffer[text_start] == "\"========== Content ==========":
@@ -147,20 +145,13 @@ def blog_send_post():
 
   content = text
 
-  if enable_tags:
-    post = {
-      'title': title,
-      'description': content,
-      'categories': cats,
-      'post_status': post_status,
-      'mt_keywords': tags
-    }
-  else:
-    post = {
-      'title': title,
-      'description': content,
-      'categories': cats,
-    }
+  post = {
+    'title': title,
+    'description': content,
+    'categories': cats,
+    'post_status': post_status,
+    'mt_keywords': tags
+  }
 
   if strid == '':
     strid = handler.newPost('', blog_username,
@@ -169,9 +160,17 @@ def blog_send_post():
     vim.current.buffer[get_line("StrID")] = "\"StrID : "+strid
     vim.current.buffer[get_line("Status")] = "\"Status : draft"
     vim.current.buffer[get_line("Preview")] = "\"Preview: "+blog_url+"?p="+strid+"&preview=true"
+    if enable_preview:
+      webbrowser.open(blog_url+"?p="+strid+"&preview=true")
   else:
     handler.editPost(strid, blog_username,
       blog_password, post, 1)
+    if post_status == "draft":
+      vim.current.buffer[get_line("Preview")] = "\"Preview: "+blog_url+"?p="+strid+"&preview=true"
+    else:
+      vim.current.buffer[get_line("Preview")] = "\"Preview: "+blog_url+"?p="+strid
+    if enable_preview:
+      webbrowser.open(blog_url+"?p="+strid)
 
   vim.command('set nomodified')
 
@@ -182,10 +181,6 @@ def blog_new_post():
   for i in l:
     s = s + (i["description"].encode("utf-8"))+"|"
   vim.command('let s:cats = "'+s+'"')
-  #if s != "": 
-  #return s[:-2]
-  #else:
-  #return s
   del vim.current.buffer[:]
   blog_edit_on()
   vim.command("set ft=html")
@@ -196,8 +191,7 @@ def blog_new_post():
   vim.current.buffer.append("\"Cats  : ")
   vim.current.buffer.append("\"Status: draft")
   vim.current.buffer.append("\"Preview: ")
-  if enable_tags:
-    vim.current.buffer.append("\"Tags  : ")
+  vim.current.buffer.append("\"Tags  : ")
   vim.current.buffer.append("\"========== Content ==========\n")
   vim.current.buffer.append("\n")
   vim.current.window.cursor = (len(vim.current.buffer), 0)
@@ -208,6 +202,11 @@ def blog_new_post():
 
 def blog_open_post(id):
   try:
+    l = handler.getCategories('', blog_username, blog_password)
+    s = ""
+    for i in l:
+      s = s + (i["description"].encode("utf-8"))+"|"
+    vim.command('let s:cats = "'+s+'"')
     post = handler.getPost(id, blog_username, blog_password)
     blog_edit_on()
     vim.command("set ft=html")
@@ -218,9 +217,11 @@ def blog_open_post(id):
     vim.current.buffer.append("\"Title : "+(post["title"]).encode("utf-8"))
     vim.current.buffer.append("\"Cats  : "+",".join(post["categories"]).encode("utf-8"))
     vim.current.buffer.append("\"Status: "+(post["post_status"]).encode("utf-8"))
-    vim.current.buffer.append("\"Preview: "+blog_url+"?p="+str(id)+"&preview=true")
-    if enable_tags:
-      vim.current.buffer.append("\"Tags  : "+(post["mt_keywords"]).encode("utf-8"))
+    if post["post_status"].encode("utf-8") == "draft":
+      vim.current.buffer.append("\"Preview: "+blog_url+"?p="+str(id)+"&preview=true")
+    else:
+      vim.current.buffer.append("\"Preview: "+blog_url+"?p="+str(id))
+    vim.current.buffer.append("\"Tags  : "+(post["mt_keywords"]).encode("utf-8"))
     vim.current.buffer.append("\"========== Content ==========\n")
     content = (post["description"]).encode("utf-8")
     for line in content.split('\n'):

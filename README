@@ -23,20 +23,4 @@ Commands :
   Must be in insert mode.
   Displays an auto-complete list of available blog categories. Currently
   only supported after :BlogNew
-  You can remap this on line73
-
-Configuration : 
-  Edit the "Settings" section (starts at line 51).
-
-  If you wish to use UTW tags, you should install the following plugin : 
-  http://blog.circlesixdesign.com/download/utw-rpc-autotag/
-  and set "enable_tags" to 1 on line 90
-
-Usage : 
-  Just fill in the blanks, do not modify the highlighted parts and everything
-  should be ok.
-
-TODO:
-  Documentation - Help File
-  Categories with commas doesn't work
-  Categories available on an edit
+  You can remap this on line 69
